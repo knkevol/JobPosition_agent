@@ -1,0 +1,30 @@
+# GitHub Actions 워크플로우: main 브랜치에 push/PR이 생길 때마다 자동으로 아래 작업을 실행합니다.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest   # GitHub이 제공하는 임시 우분투 가상머신에서 실행
+
+    steps:
+      - name: 저장소 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 테스트 실행
+        # DATABASE_URL이 없으면 config.py의 Settings()가 에러를 냄 → CI용 더미 값 지정
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci_db
+        run: pytest -v

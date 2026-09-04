@@ -1,0 +1,24 @@
+# docker-compose : postgres, Redis(추가예정)
+services:
+  postgres:
+    image: postgres:16-alpine   # 공식 PostgreSQL 이미지의 16버전, alpine은 용량이 작은 경량 리눅스 베이스
+    container_name: jobagent_postgres
+    environment:
+      # 아래 3개 값은 .env.example의 DATABASE_URL과 반드시 일치해야 함 (사용자명/비밀번호/DB이름)
+      POSTGRES_USER: jobagent
+      POSTGRES_PASSWORD: jobagent_password
+      POSTGRES_DB: jobagent_db
+    ports:
+      - "5432:5432"   # "호스트포트:컨테이너포트" - 내 PC의 5432번 포트로 접속하면 컨테이너 안의 5432번(PostgreSQL 기본 포트)로 연결됨
+    volumes:
+      - jobagent_pgdata:/var/lib/postgresql/data
+      # 컨테이너를 지워도 데이터가 사라지지 않도록, DB 데이터 파일을 "볼륨"이라는 별도 저장공간에 보관
+    healthcheck:
+      # docker가 "이 컨테이너가 진짜로 요청을 받을 준비가 됐는지"를 주기적으로 확인하는 명령
+      test: ["CMD-SHELL", "pg_isready -U jobagent -d jobagent_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  jobagent_pgdata:   # 위에서 참조한 볼륨을 실제로 선언(이름을 붙여 docker가 관리하는 저장공간을 생성)
