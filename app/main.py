@@ -1,7 +1,13 @@
+import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import resumes
+from app.api.routes import resumes, job_postings
 
 app = FastAPI(
     title="AI 채용공고 매칭 에이전트",
@@ -18,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(resumes.router)
+app.include_router(job_postings.router)
 
 # 서버가 살아있는지 확인하는 가장 기본적인 엔드포인트
 @app.get("/health")
