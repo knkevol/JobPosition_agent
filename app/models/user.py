@@ -21,6 +21,6 @@ class User(Base):
     # ex) user.resume_profiles => 목록 자동 조회
     resume_profiles = relationship("ResumeProfile", back_populates="user", cascade="all, delete-orphan")
     portfolio_projects = relationship("PortfolioProject", back_populates="user", cascade="all, delete-orphan")
-    job_positngs = relationship("JobPosting", back_populates="user", cascade="all, delete-orphan")
+    job_postings = relationship("JobPosting", back_populates="user", cascade="all, delete-orphan")
     fit_scores = relationship("FitScore", back_populates="user", cascade="all, delete-orphan")
     feedbacks = relationship("UserFeedback", back_populates="user", cascade="all, delete-orphan")

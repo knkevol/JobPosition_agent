@@ -16,6 +16,6 @@ class ResumeProfile(Base):
     experience = Column(JSONB, nullable=False, server_default="[]")
     education = Column(JSONB, nullable=False, server_default="[]")
 
-    self_repoted_tech = Column(ARRAY(String), nullable=False, server_default="{}")
+    self_reported_tech = Column(ARRAY(String), nullable=False, server_default="{}")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     user = relationship("User", back_populates="resume_profiles")

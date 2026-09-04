@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes import resumes
+
 app = FastAPI(
     title="AI 채용공고 매칭 에이전트",
     description="이력서·포트폴리오·GitHub 분석 기반 채용공고 적합도 평가 API",
@@ -14,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(resumes.router)
 
 # 서버가 살아있는지 확인하는 가장 기본적인 엔드포인트
 @app.get("/health")
