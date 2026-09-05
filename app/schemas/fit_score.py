@@ -1,6 +1,7 @@
 from typing import List, Optional
+from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.models.fit_score import FitGrade
 
@@ -12,3 +13,16 @@ class FitScoreResult(BaseModel):
     missing_skills: List[str] = Field(default_factory=list)
     reason: Optional[str] = None
     grade: FitGrade
+
+class FitScoreOut(BaseModel):
+    id: int
+    user_id: int
+    job_id: int
+    score: int
+    matched_skills: List[str]
+    missing_skills: List[str]
+    reason: Optional[str] = None
+    grade: FitGrade
+    calculated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

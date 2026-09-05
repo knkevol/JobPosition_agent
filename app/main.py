@@ -7,7 +7,7 @@ if sys.platform == "win32":
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import resumes, job_postings
+from app.api.routes import resumes, job_postings, fit_scores
 
 app = FastAPI(
     title="AI 채용공고 매칭 에이전트",
@@ -25,6 +25,7 @@ app.add_middleware(
 
 app.include_router(resumes.router)
 app.include_router(job_postings.router)
+app.include_router(fit_scores.router)
 
 # 서버가 살아있는지 확인하는 가장 기본적인 엔드포인트
 @app.get("/health")
