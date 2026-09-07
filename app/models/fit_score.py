@@ -23,6 +23,8 @@ class FitScore(Base):
 
     score = Column(Integer, nullable=False)
     matched_skills = Column(ARRAY(String), nullable=False, server_default="{}")
+    verified_matched_skills = Column(ARRAY(String), nullable=False, server_default="{}")
+    unverified_matched_skills = Column(ARRAY(String), nullable=False, server_default="{}")
     missing_skills = Column(ARRAY(String), nullable=False, server_default="{}")
     reason = Column(Text, nullable=True)
 

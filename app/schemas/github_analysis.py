@@ -25,3 +25,20 @@ class GithubRepoAnalysisOut(BaseModel):
     analyzed_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+# --- 수동 기능 추가 ---
+class ClaimVerificationRequest(BaseModel):
+    claim: str = Field(..., description="사용자가 추가를 원하는 구현기능 설명")
+
+class RelevantFilePaths(BaseModel):
+    paths: List[str] = Field(default_factory=list)
+
+class ClaimEvidence(BaseModel):
+    path: str
+    explanation: str
+
+class ClaimVerificationResult(BaseModel):
+    found: bool
+    tech_label: Optional[str] = Field(default=None, description="found==ture > verified_tech에 추가할 명칭")
+    evidence: List[ClaimEvidence] = Field(default_factory=list)
+    explanation: str

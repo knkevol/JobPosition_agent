@@ -175,8 +175,7 @@ def fetch_dependency_manifests(repository: Repository, files: list[RepoFile], re
             manifests[f.path] = content
     return manifests
 
-# 대표 소스파일 내용 반환.
-# 파일이 클수록 메인파일로 보고 상위 max_files만 선택
+# 대표 소스파일 내용 반환. 파일크기로 중요도 판단
 def fetch_source_snippets(repository: Repository, files: list[RepoFile], ref: str | None = None, max_files: int = 6, max_chars_per_file: int = 3000,) -> dict[str, str]:
     candidates = [f for f in files if _get_extension(f.path) in _EXTENSION_LANGUAGE_MAP and not _is_vendor_path(f.path)]
     candidates.sort(key=lambda f: f.size, reverse=True)

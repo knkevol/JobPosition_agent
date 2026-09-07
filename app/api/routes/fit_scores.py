@@ -29,45 +29,45 @@ def _collect_user_skills(db: Session, user_id: int) -> list[str]:
 
     portfolios = db.query(PortfolioProject).filter(PortfolioProject.user_id == user_id).all()
 
-    all_skills = list(resume.skills) + list(resume.self_reported_tech)
+    self_reported_skills = list(resume.skills) + list(resume.self_reported_tech)
     for project in portfolios:
-        all_skills.extend(project.tech_stack)
+        self_reported_skills.extend(project.tech_stack)
+
+    verified_skills = []
+    for project in portfolios:
+        if project.github_analysis is not None:
+            verified_skills.extend(project.github_analysis.verified_tech)
 
     # dict.fromkeys : 중복 제거 + 순서 유지
-    return list(dict.fromkeys(all_skills))
+    return (list(dict.fromkeys(self_reported_skills)), list(dict.fromkeys(verified_skills)))
 
 @router.post("/calculate")
 def calculate(payload: FitScoreCalculateRequest, db: Session = Depends(get_db)):
     user = get_or_create_default_user(db)
 
-    job_posting = (
-        db.query(JobPosting)
-        .filter(JobPosting.id == payload.job_posting_id, JobPosting.user_id == user.id)
-        .first()
-    )
+    job_posting = (db.query(JobPosting).filter(JobPosting.id == payload.job_posting_id, JobPosting.user_id == user.id).first())
     if job_posting is None:
         raise HTTPException(status_code=404, detail="해당 채용공고 분석 결과가 없습니다.")
 
-    user_skills = _collect_user_skills(db, user.id)
+    self_reported_skills, verified_skills = _collect_user_skills(db, user.id)
 
     base_score = compute_skill_match_rate(
-        user_skills=user_skills,
+        verified_skills=verified_skills,
+        self_reported_skills=self_reported_skills,
         required_skills=job_posting.required_skills,
         preferred_skills=job_posting.preferred_skills,
     )
-    result = calculate_fit_score(user_skills, job_posting, base_score)
+    result = calculate_fit_score(verified_skills, self_reported_skills, job_posting, base_score)
 
-    fit_score = (
-        db.query(FitScore)
-        .filter(FitScore.user_id == user.id, FitScore.job_id == job_posting.id)
-        .first()
-    )
+    fit_score = (db.query(FitScore).filter(FitScore.user_id == user.id, FitScore.job_id == job_posting.id).first())
     if fit_score is None:
         fit_score = FitScore(user_id=user.id, job_id=job_posting.id)
         db.add(fit_score)
 
     fit_score.score = result.score
     fit_score.matched_skills = result.matched_skills
+    fit_score.verified_matched_skills = result.verified_matched_skills
+    fit_score.unverified_matched_skills = result.unverified_matched_skills
     fit_score.missing_skills = result.missing_skills
     fit_score.reason = result.reason
     fit_score.grade = result.grade
