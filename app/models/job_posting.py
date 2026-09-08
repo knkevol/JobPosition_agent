@@ -1,9 +1,16 @@
+import enum
+
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+
+class ApplicationStatus(str, enum.Enum):
+    NOT_APPLIED = "not_applied" # 미지원
+    APPLIED = "applied"         # 지원완료
 
 
 class JobPosting(Base):
@@ -25,7 +32,9 @@ class JobPosting(Base):
     required_skills = Column(ARRAY(String), nullable=False, server_default="{}")
     preferred_skills = Column(ARRAY(String), nullable=False, server_default="{}")
     experience_level = Column(String(100), nullable=True)  # 예: 신입, 3년 이상
-    source_site = Column(String(50), nullable=True)  # 예: 사람인, 잡코리아
+    source_site = Column(String(50), nullable=True)        # 예: 사람인, 잡코리아
+
+    application_status = Column(SAEnum(ApplicationStatus, name="application_status"), nullable=False, server_default=ApplicationStatus.NOT_APPLIED.name)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
