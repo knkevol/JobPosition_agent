@@ -46,7 +46,7 @@ def determine_grade(score: int) -> FitGrade:
     return FitGrade.NOT_RECOMMEND
 
 # 사용자 역량 + 채용공고를 LLM에 전달하여 정성적 비교
-def calculate_fit_score(verified_skills: list[str], self_reported_skills: list[str], job_posting: JobPosting, base_score: float) -> FitScoreResult:
+def calculate_fit_score(verified_skills: list[str], self_reported_skills: list[str], job_posting: JobPosting, base_score: float, experience_context: str = "") -> FitScoreResult:
     settings = get_settings()
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -65,15 +65,27 @@ def calculate_fit_score(verified_skills: list[str], self_reported_skills: list[s
         "verified_matched_skills에 넣고, unverified_matched_skills에는 중복으로 넣지 마세요.\n\n"
         f"[GitHub로 검증된 기술]\n{', '.join(verified_skills) or '(없음)'}\n\n"
         f"[자기 신고 기술]\n{', '.join(self_reported_skills) or '(없음)'}\n\n"
+        f"[경력 설명 — 이력서 원문 기반, 기술 목록에 안 담기는 업무/협업 경험]\n"
+        f"{experience_context or '(없음)'}\n"
+        "경력 설명은 협업/커뮤니케이션 경험, 도메인 지식처럼 GitHub 저장소로는 애초에 "
+        "확인할 방법이 없는 성격의 정보입니다. 위 [자기 신고 기술]과는 달라서, "
+        "'GitHub로 검증이 안 됐으니 신뢰도가 낮다'는 논리를 여기에 적용하지 마세요. "
+        "이력서에 적힌 내용을 그대로 사실로 받아들여 판단 근거로 사용하세요. 경력 설명으로 "
+        "충족되는 공고 요건이 있다면 missing_skills에는 넣지 마세요. 단, 절대 그냥 "
+        "빠뜨리지 말고 reason에서 '~요건은 경력 설명의 ~ 내용으로 충족됨'처럼 어떤 요건이 "
+        "어떤 근거로 충족됐는지 반드시 명시적으로 언급하세요 — 언급 없이 누락되는 요건이 "
+        "있으면 안 됩니다. 여기서 확인된 내용을 기술 매칭 목록(verified/"
+        "unverified_matched_skills)에 억지로 넣지는 마세요.\n\n"
         "[채용공고]\n"
         f"- 회사: {job_posting.company or '알 수 없음'}\n"
         f"- 직무: {job_posting.title}\n"
         f"- 필수기술: {', '.join(job_posting.required_skills) or '(명시 없음)'}\n"
         f"- 우대기술: {', '.join(job_posting.preferred_skills) or '(명시 없음)'}\n"
         f"- 경력요건: {job_posting.experience_level or '명시 없음'}\n\n"
-        f"참고용 기준 점수(기계적 계산값, GitHub 검증 여부 가중치가 이미 반영됨): {base_score}/100\n"
-        "이 기준 점수를 참고하되, 의미상 같은 기술인데 표기만 달라 놓친 일치가 있다면 "
-        "직접 판단해서 반영해주세요.\n\n"
+        f"참고용 기준 점수(기계적 계산값): {base_score}/100\n"
+        "주의: 이 기준 점수는 완전 문자열 일치만 확인하는 단순 계산이라, 표현이 조금만 달라도 "
+        "매칭을 놓쳐 실제보다 낮게(0에 가깝게) 나오는 경우가 많습니다. 이 숫자 자체를 신뢰하지 "
+        "말고 참고만 하되, 최종 판단은 위 기술 목록을 의미 기준으로 직접 비교해서 내려주세요.\n\n"
         "다음을 산출해주세요:\n"
         "1. verified_matched_skills: 공고 요구 기술 중 [GitHub로 검증된 기술]로 충족되는 것\n"
         "2. unverified_matched_skills: 공고 요구 기술 중 [자기 신고 기술]에만 있고 GitHub로는 "
@@ -81,7 +93,9 @@ def calculate_fit_score(verified_skills: list[str], self_reported_skills: list[s
         "3. missing_skills: 공고에서 요구하지만 지원자에게 전혀 없는 기술\n"
         "4. reason: 지원 추천/비추천 이유를 2~3문장으로 설명. 자기 신고만 되어있고 GitHub로 "
         "검증되지 않은 기술이 점수에 영향을 줬다면 그 점도 언급해주세요.\n"
-        "5. score: 0~100 사이의 최종 적합도 점수\n"
+        "5. score: 0~100 사이의 최종 적합도 점수. reason에서 설명한 근거의 강도와 반드시 "
+        "일관되게 매겨주세요 — 예를 들어 reason에서 '소폭 영향'이라고 썼다면 점수도 그에 맞게 "
+        "소폭만 조정하고, reason과 점수 변화폭이 서로 어긋나지 않도록 하세요.\n"
     )
 
     response = client.messages.parse(

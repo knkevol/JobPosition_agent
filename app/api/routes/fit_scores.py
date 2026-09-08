@@ -38,8 +38,15 @@ def _collect_user_skills(db: Session, user_id: int) -> list[str]:
         if project.github_analysis is not None:
             verified_skills.extend(project.github_analysis.verified_tech)
 
+    experience_lines = []
+    for item in resume.experience:
+        description = item.get("description")
+        if description:
+            experience_lines.append(f"- {item.get('company', '?')} ({item.get('period', '?')}) - {item.get('role', '?')}: {description}")
+    experience_context = "\n".join(experience_lines)
+
     # dict.fromkeys : 중복 제거 + 순서 유지
-    return (list(dict.fromkeys(self_reported_skills)), list(dict.fromkeys(verified_skills)))
+    return (list(dict.fromkeys(self_reported_skills)), list(dict.fromkeys(verified_skills)), experience_context)
 
 @router.post("/calculate")
 def calculate(payload: FitScoreCalculateRequest, db: Session = Depends(get_db)):
@@ -49,7 +56,7 @@ def calculate(payload: FitScoreCalculateRequest, db: Session = Depends(get_db)):
     if job_posting is None:
         raise HTTPException(status_code=404, detail="해당 채용공고 분석 결과가 없습니다.")
 
-    self_reported_skills, verified_skills = _collect_user_skills(db, user.id)
+    self_reported_skills, verified_skills, experience_context = _collect_user_skills(db, user.id)
 
     base_score = compute_skill_match_rate(
         verified_skills=verified_skills,
@@ -57,7 +64,7 @@ def calculate(payload: FitScoreCalculateRequest, db: Session = Depends(get_db)):
         required_skills=job_posting.required_skills,
         preferred_skills=job_posting.preferred_skills,
     )
-    result = calculate_fit_score(verified_skills, self_reported_skills, job_posting, base_score)
+    result = calculate_fit_score(verified_skills, self_reported_skills, job_posting, base_score, experience_context)
 
     fit_score = (db.query(FitScore).filter(FitScore.user_id == user.id, FitScore.job_id == job_posting.id).first())
     if fit_score is None:

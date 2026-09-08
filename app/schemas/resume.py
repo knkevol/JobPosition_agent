@@ -6,6 +6,7 @@ class ExperienceItem(BaseModel):
     company: str = Field(..., description="회사명")
     period: str = Field(..., description="근무 기간")
     role: str = Field(..., description="담당 직무")
+    description: Optional[str] = Field(None, description="주요 업무 내용, 사용 기술 및 성과 등 자유 서술")
 
 class EducationItem(BaseModel):
     school: str
