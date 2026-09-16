@@ -1,7 +1,9 @@
 import io
+from typing import Optional
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.services.pdf_extractor import extract_text_from_pdf
@@ -57,6 +59,61 @@ async def analyze_resume(file: UploadFile = File(...), db: Session = Depends(get
         "resume_profile_id": profile.id,
         "extracted": extracted.model_dump(),
     }
+
+# --- 이력서 목록/저장/활성화 ---
+class ResumeSaveRequest(BaseModel):
+    # 저장할 때 구분용 이름을 붙일 수 있게 한다. Default = None
+    label: Optional[str] = None
+
+@router.get("", response_model=list[ResumeProfileOut])
+def list_saved_resumes(db: Session = Depends(get_db)):
+    user = get_or_create_default_user(db)
+    return (
+        db.query(ResumeProfile)
+        .filter(ResumeProfile.user_id == user.id, ResumeProfile.is_saved.is_(True))
+        .order_by(ResumeProfile.created_at.desc())
+        .all()
+    )
+
+@router.post("/{resume_id}/save", response_model=ResumeProfileOut)
+def save_resume(resume_id: int, payload: ResumeSaveRequest, db: Session = Depends(get_db)):
+    profile = db.get(ResumeProfile, resume_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="해당 이력서 분석 결과가 없습니다.")
+
+    profile.is_saved = True
+    profile.label = payload.label
+
+    # 저장 -> 활성, 활성화된 이력서는 1개
+    (
+        db.query(ResumeProfile)
+        .filter(ResumeProfile.user_id == profile.user_id, ResumeProfile.id != profile.id)
+        .update({"is_active": False})
+    )
+    profile.is_active = True
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+@router.post("/{resume_id}/activate", response_model=ResumeProfileOut)
+def activate_resume(resume_id: int, db: Session = Depends(get_db)):
+    profile = db.get(ResumeProfile, resume_id)
+    if profile is None:
+        raise HTTPException(status_code=404, detail="해당 이력서 분석 결과가 없습니다.")
+    if not profile.is_saved:
+        raise HTTPException(status_code=400, detail="저장되지 않은 이력서는 활성으로 지정할 수 없습니다.")
+
+    (
+        db.query(ResumeProfile)
+        .filter(ResumeProfile.user_id == profile.user_id, ResumeProfile.id != profile.id)
+        .update({"is_active": False})
+    )
+    profile.is_active = True
+
+    db.commit()
+    db.refresh(profile)
+    return profile
     
 @router.get("/{resume_id}", response_model=ResumeProfileOut)
 def get_resume(resume_id: int, db: Session = Depends(get_db)):

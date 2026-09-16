@@ -7,6 +7,7 @@ from app.services.fit_score_calculator import compute_skill_match_rate, calculat
 from app.services.user_service import get_or_create_default_user
 from app.models.job_posting import JobPosting
 from app.models.resume_profile import ResumeProfile
+from app.models.portfolio_version import PortfolioVersion
 from app.models.portfolio_project import PortfolioProject
 from app.models.fit_score import FitScore
 from app.schemas.fit_score import FitScoreOut
@@ -20,14 +21,21 @@ class FitScoreCalculateRequest(BaseModel):
 def _collect_user_skills(db: Session, user_id: int) -> list[str]:
     resume = (
         db.query(ResumeProfile)
-        .filter(ResumeProfile.user_id == user_id)
-        .order_by(ResumeProfile.created_at.desc())
+        .filter(ResumeProfile.user_id == user_id, ResumeProfile.is_active.is_(True))
         .first()
     )
     if resume is None:
-        raise HTTPException(status_code=422, detail="분석된 이력서가 없습니다. 이력서를 업로드 해주세요.")
+         raise HTTPException(
+            status_code=422,
+            detail="적합도 계산에 사용할 활성화된 이력서가 없습니다. 이력서를 저장하고 활성으로 지정해주세요.",
+        )
 
-    portfolios = db.query(PortfolioProject).filter(PortfolioProject.user_id == user_id).all()
+    active_version = (
+        db.query(PortfolioVersion)
+        .filter(PortfolioVersion.user_id == user_id, PortfolioVersion.is_active.is_(True))
+        .first()
+    )
+    portfolios = active_version.projects if active_version else []
 
     self_reported_skills = list(resume.skills) + list(resume.self_reported_tech)
     for project in portfolios:

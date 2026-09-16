@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -17,5 +17,10 @@ class ResumeProfile(Base):
     education = Column(JSONB, nullable=False, server_default="[]")
 
     self_reported_tech = Column(ARRAY(String), nullable=False, server_default="{}")
+    # 분석결과 저장 여부
+    is_saved = Column(Boolean, nullable=False, server_default="false")
+    is_active = Column(Boolean, nullable=False, server_default="false")
+    # 사용자가 붙이는 구분용 이름 (선택)
+    label = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     user = relationship("User", back_populates="resume_profiles")

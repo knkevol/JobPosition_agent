@@ -35,6 +35,9 @@ class ResumeProfileOut(BaseModel):
     education: List[EducationItem]
     self_reported_tech: List[str]
     created_at: datetime
+    is_saved: bool
+    is_active: bool
+    label: Optional[str] = None
 
     # ResumeProfile 객체를 dict로 변환 가능
     model_config = ConfigDict(from_attributes=True)

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { fetchJobPostingDetail } from "@/lib/api";
 import { gradeLabel, formatDate } from "@/lib/format";
 import JobActions from "@/components/JobActions";
+import FitScoreCalculateButton from "@/components/FitScoreCalculateButton";
 
 // 배열(string[])을 뱃지 형태의 태그 목록으로 그려주는 작은 헬퍼 컴포넌트.
 // required_skills / preferred_skills / matched_skills 등 6곳에서 똑같은 모양이
@@ -127,6 +128,7 @@ export default async function JobPostingDetailPage(
 
           <section className="mt-8 rounded border border-zinc-200 p-4 dark:border-zinc-800">
             <h2 className="font-semibold">적합도 계산 결과</h2>
+            <FitScoreCalculateButton jobId={job.id} hasScore={!!job.fit_score} />
 
             {/* job.fit_score가 없으면(아직 계산 안 한 공고) 안내 문구만 보여준다. */}
             {!job.fit_score && (

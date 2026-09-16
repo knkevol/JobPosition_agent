@@ -32,35 +32,47 @@ def detect_source_site(url: str) -> str:
 
 @router.post("/analyze")
 def analyze_job_posting(payload: JobPostingAnalyzeRequest, db: Session = Depends(get_db)):
+    user = get_or_create_default_user(db)
+
+    # 이미 분석해서 저장해둔 URL이면, 스크래핑(fetch_page_text)과 LLM 분석
+    existing = (
+        db.query(JobPosting)
+        .filter(JobPosting.user_id == user.id, JobPosting.url == payload.url)
+        .first()
+    )
+    if existing is not None:
+        return {
+            "job_posting_id": existing.id,
+            "skipped": True,
+            "extracted": {
+                "company": existing.company,
+                "title": existing.title,
+                "required_skills": existing.required_skills,
+                "preferred_skills": existing.preferred_skills,
+                "experience_level": existing.experience_level,
+            },
+        }
+
     try:
         text = fetch_page_text(payload.url)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
     extracted = analyze_job_posting_text(text)
-    user = get_or_create_default_user(db)
 
-    # 분석된 적 있는 URL인지 확인
-    posting = (
-        db.query(JobPosting)
-        .filter(JobPosting.user_id == user.id, JobPosting.url == payload.url)
-        .first()
-    )
-    if posting is None:
-        posting = JobPosting(user_id=user.id, url=payload.url)
-        db.add(posting)
-
+    posting = JobPosting(user_id=user.id, url=payload.url)
     posting.company = extracted.company
     posting.title = extracted.title
     posting.required_skills = extracted.required_skills
     posting.preferred_skills = extracted.preferred_skills
     posting.experience_level = extracted.experience_level
     posting.source_site = detect_source_site(payload.url)
+    db.add(posting)
 
     db.commit()
     db.refresh(posting)
 
-    return {"job_posting_id": posting.id, "extracted": extracted.model_dump()}
+    return {"job_posting_id": posting.id, "skipped": False, "extracted": extracted.model_dump()}
 
 # 분석된 채용공고 목록을 적합도/회사/직무/부족기술 기준으로 정렬 및 필터링
 @router.get("", response_model=list[JobPostingListItem])

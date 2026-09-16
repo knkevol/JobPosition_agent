@@ -10,6 +10,7 @@ class PortfolioProject(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    portfolio_version_id = Column(Integer, ForeignKey("portfolio_versions.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     # Text : String과 달리 길이 제한 없음
     description = Column(Text, nullable=True)
@@ -19,6 +20,7 @@ class PortfolioProject(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="portfolio_projects")
+    portfolio_version = relationship("PortfolioVersion", back_populates="projects")
 
     # GitHub 분석 결과 : relationship (1:1 관계)
     github_analysis = relationship(
