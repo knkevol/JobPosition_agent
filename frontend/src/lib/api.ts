@@ -102,11 +102,11 @@ export async function fetchJobPostingDetail(id: number): Promise<JobPostingDetai
 }
 
 // 관심/제외 피드백 등록 — POST /job-postings/{id}/feedback
-export async function submitFeedback(id: number, action: FeedbackAction) {
+export async function submitFeedback(id: number, action: FeedbackAction, excludeKeyword?: string) {
   const res = await fetch(`${API_BASE_URL}/job-postings/${id}/feedback`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
+    body: JSON.stringify({ action, exclude_keyword: excludeKeyword ?? null }),
   });
   return handleResponse<{ id: number; job_id: number; action: FeedbackAction; created_at: string }>(res);
 }

@@ -1,13 +1,12 @@
 from typing import Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.core.database import get_db
-from app.services.job_posting_fetcher import fetch_page_text
-from app.services.job_posting_analyzer import analyze_job_posting_text
+from app.services.job_posting_service import analyze_or_get_existing
 from app.services.user_service import get_or_create_default_user
 from app.models.job_posting import JobPosting, ApplicationStatus
 from app.models.fit_score import FitScore, FitGrade
@@ -21,58 +20,27 @@ router = APIRouter(prefix="/job-postings", tags=["job-postings"])
 class JobPostingAnalyzeRequest(BaseModel):
     url: str
 
-def detect_source_site(url: str) -> str:
-    if "saramin.co.kr" in url:
-        return "saramin"
-    if "jobkorea.co.kr" in url:
-        return "jobkorea"
-    if "wanted.co.kr" in url:
-        return "wanted"
-    return "unknown"
-
+# 요청 받기 → 서비스 호출 → 에러를 HTTP 응답으로 변환 → 결과 조립
 @router.post("/analyze")
 def analyze_job_posting(payload: JobPostingAnalyzeRequest, db: Session = Depends(get_db)):
     user = get_or_create_default_user(db)
 
-    # 이미 분석해서 저장해둔 URL이면, 스크래핑(fetch_page_text)과 LLM 분석
-    existing = (
-        db.query(JobPosting)
-        .filter(JobPosting.user_id == user.id, JobPosting.url == payload.url)
-        .first()
-    )
-    if existing is not None:
-        return {
-            "job_posting_id": existing.id,
-            "skipped": True,
-            "extracted": {
-                "company": existing.company,
-                "title": existing.title,
-                "required_skills": existing.required_skills,
-                "preferred_skills": existing.preferred_skills,
-                "experience_level": existing.experience_level,
-            },
-        }
-
     try:
-        text = fetch_page_text(payload.url)
+        posting, skipped = analyze_or_get_existing(db, user, payload.url)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    extracted = analyze_job_posting_text(text)
-
-    posting = JobPosting(user_id=user.id, url=payload.url)
-    posting.company = extracted.company
-    posting.title = extracted.title
-    posting.required_skills = extracted.required_skills
-    posting.preferred_skills = extracted.preferred_skills
-    posting.experience_level = extracted.experience_level
-    posting.source_site = detect_source_site(payload.url)
-    db.add(posting)
-
-    db.commit()
-    db.refresh(posting)
-
-    return {"job_posting_id": posting.id, "skipped": False, "extracted": extracted.model_dump()}
+    return {
+        "job_posting_id": posting.id,
+        "skipped": skipped,
+        "extracted": {
+            "company": posting.company,
+            "title": posting.title,
+            "required_skills": posting.required_skills,
+            "preferred_skills": posting.preferred_skills,
+            "experience_level": posting.experience_level,
+        },
+    }
 
 # 분석된 채용공고 목록을 적합도/회사/직무/부족기술 기준으로 정렬 및 필터링
 @router.get("", response_model=list[JobPostingListItem])
@@ -126,6 +94,9 @@ def list_job_postings(
         query = query.filter(JobPosting.application_status == application_status)
     if feedback is not None:
         query = query.filter(latest_feedback.c.action == feedback)
+    else:
+        # 기본 상태(필터 안 걸었을 때)에서는 제외(❌) 처리한 공고를 목록에서 아예 뺀다.
+        query = query.filter(or_(latest_feedback.c.action.is_(None), latest_feedback.c.action != FeedbackAction.EXCLUDED))
     if missing_skill:
         query = query.filter(FitScore.missing_skills.any(missing_skill)) # ARRAY 컬럼.any(값) : "값 = ANY(배열)" — missing_skills 배열 안에 이 문자열이 있는 행만
 
@@ -194,7 +165,7 @@ def add_feedback(job_posting_id: int, payload: FeedbackRequest, db: Session = De
     if job_posting is None:
         raise HTTPException(status_code=404, detail="해당 채용공고 분석 결과가 없습니다.")
 
-    feedback = UserFeedback(user_id=user.id, job_id=job_posting_id, action=payload.action)
+    feedback = UserFeedback(user_id=user.id, job_id=job_posting_id, action=payload.action, exclude_keyword=payload.exclude_keyword)
     db.add(feedback)
     db.commit()
     db.refresh(feedback)

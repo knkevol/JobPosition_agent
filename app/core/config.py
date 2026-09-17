@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     github_token: str = ""
     app_env:str = "local"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_app_password: str = ""
+    notify_email_to: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

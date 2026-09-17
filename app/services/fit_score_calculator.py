@@ -100,7 +100,7 @@ def calculate_fit_score(verified_skills: list[str], self_reported_skills: list[s
 
     response = client.messages.parse(
         model="claude-sonnet-5",
-        max_tokens=4096,
+        max_tokens=8192,
         messages=[{"role": "user", "content": prompt}],
         output_format=FitScoreLLMResult,
     )

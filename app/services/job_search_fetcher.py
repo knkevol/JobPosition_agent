@@ -5,6 +5,9 @@ from playwright.sync_api import sync_playwright
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
+# 키워드 1개당 가져오는 공고 개수 상한
+MAX_RESULTS_PER_KEYWORD = 10
+
 # 정규화된 상세 URL을 반환. with sync_playwright() 블록 하나 안에서 브라우저/페이지를 한번만 열고 재사용
 def search_saramin(keywords: list[str]) -> list[str]:
     urls: set[str] = set() # 중복 제거를 위한 set 사용
@@ -25,10 +28,14 @@ def search_saramin(keywords: list[str]) -> list[str]:
             # rec_idx(공고 고유 ID)가 포함된 href js로 수집
             hrefs = page.eval_on_selector_all("a[href*='rec_idx=']", "elements => elements.map(el => el.href)")
 
+            seen_ids: list[str] = []
             for href in hrefs:
                 match = re.search(r"rec_idx=(\d+)", href)
-                if match:
-                    urls.add(f"https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={match.group(1)}")
+                if match and match.group(1) not in seen_ids:
+                    seen_ids.append(match.group(1))
+
+            for rec_id in seen_ids[:MAX_RESULTS_PER_KEYWORD]:
+                urls.add(f"https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={rec_id}")
 
         browser.close()
 
@@ -51,11 +58,16 @@ def search_jobkorea(keywords: list[str]) -> list[str]:
             hrefs = page.eval_on_selector_all(
                 "a[href*='/Recruit/GI_Read/']", "elements => elements.map(el => el.href)"
             )
+
+            seen_ids: list[str] = []
             for href in hrefs:
                 match = re.search(r"/Recruit/GI_Read/(\d+)", href)
-                if match:
-                    # listno/sc/logpath 같은 추적 쿼리 다 버리고 공고 ID만 남김
-                    urls.add(f"https://www.jobkorea.co.kr/Recruit/GI_Read/{match.group(1)}")
+                if match and match.group(1) not in seen_ids:
+                    seen_ids.append(match.group(1))
+
+            for job_id in seen_ids[:MAX_RESULTS_PER_KEYWORD]:
+                # listno/sc/logpath 같은 추적 쿼리 다 버리고 공고 ID만 남김
+                urls.add(f"https://www.jobkorea.co.kr/Recruit/GI_Read/{job_id}")
 
         browser.close()
 
